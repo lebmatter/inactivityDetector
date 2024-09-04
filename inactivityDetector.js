@@ -2,10 +2,8 @@
 
 /**
  * InactivityDetector class
- * 
- * This class provides functionality to detect user inactivity, page visibility changes,
- * and monitor configuration changes. It can be used to implement warning systems or
- * auto-logout features in web applications.
+ * This class provides functionality to detect user inactivity based on page visibility,
+ * monitor configuration changes, and detect window close events.
  */
 class InactivityDetector {
   /**
@@ -15,111 +13,136 @@ class InactivityDetector {
    * @param {Function} [options.onInactive] - Callback function when user becomes inactive
    * @param {Function} [options.onActive] - Callback function when user becomes active again
    * @param {Function} [options.onMonitorChange] - Callback function when monitor configuration changes
+   * @param {Function} [options.onWindowClose] - Callback function when window is about to close
    */
   constructor(options = {}) {
-      // Merge default options with provided options
-      this.options = {
-          warningThreshold: 5, // Default 5 seconds
-          onInactive: () => {},
-          onActive: () => {},
-          onMonitorChange: () => {},
-          ...options
-      };
+    // Merge default options with provided options
+    this.options = {
+      warningThreshold: 5,
+      onInactive: () => {},
+      onActive: () => {},
+      onMonitorChange: () => {},
+      onWindowClose: () => {},
+      ...options
+    };
 
-      // Initialize tracking variables
-      this.lastActiveTime = new Date();
-      this.isActive = true;
-      this.lastScreens = `${window.screen.width}x${window.screen.height}`;
+    // Key for storing hiddenTime in localStorage
+    this.storageKey = 'inactivityDetectorHiddenTime';
+    
+    // Store initial screen configuration
+    this.lastScreens = `${window.screen.width}x${window.screen.height}`;
 
-      // Bind methods to ensure correct 'this' context when used as event listeners
-      this.checkActivity = this.checkActivity.bind(this);
-      this.resetTimer = this.resetTimer.bind(this);
-      this.checkMonitorChange = this.checkMonitorChange.bind(this);
+    // Bind methods to ensure correct 'this' context when used as event listeners
+    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    this.checkMonitorChange = this.checkMonitorChange.bind(this);
+    this.handleBeforeUnload = this.handleBeforeUnload.bind(this);
   }
 
   /**
    * Initialize the detector by setting up event listeners and intervals.
    */
   init() {
-      // Set up activity listeners for various user interactions
-      ['mousedown', 'keydown', 'touchstart', 'mousemove'].forEach(eventType => {
-          document.addEventListener(eventType, this.resetTimer);
-      });
+    // Clear any existing hiddenTime in localStorage
+    localStorage.removeItem(this.storageKey);
 
-      // Set up visibility change listener to detect when the page is hidden/shown
-      document.addEventListener('visibilitychange', this.checkActivity);
+    // Set up visibility change listener to detect when the page is hidden/shown
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    
+    // Set up beforeunload listener to detect when the window is about to close
+    window.addEventListener('beforeunload', this.handleBeforeUnload);
+    
+    // Start the monitor change checker, checking every second
+    this.monitorInterval = setInterval(this.checkMonitorChange, 1000);
 
-      // Start the inactivity timer, checking every second
-      this.activityInterval = setInterval(this.checkActivity, 1000);
-
-      // Start the monitor change checker, checking every second
-      this.monitorInterval = setInterval(this.checkMonitorChange, 1000);
+    // Check if the page was hidden when it was last unloaded
+    this.checkInitialState();
   }
 
   /**
    * Clean up by removing event listeners and clearing intervals.
    */
   destroy() {
-      // Remove all event listeners
-      ['mousedown', 'keydown', 'touchstart', 'mousemove'].forEach(eventType => {
-          document.removeEventListener(eventType, this.resetTimer);
-      });
-      document.removeEventListener('visibilitychange', this.checkActivity);
+    // Remove all event listeners
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('beforeunload', this.handleBeforeUnload);
+    
+    // Clear monitor change interval
+    clearInterval(this.monitorInterval);
 
-      // Clear intervals
-      clearInterval(this.activityInterval);
-      clearInterval(this.monitorInterval);
+    // Clear hiddenTime from localStorage on destroy
+    localStorage.removeItem(this.storageKey);
   }
 
   /**
-   * Reset the inactivity timer when user activity is detected.
+   * Check the initial state when the detector is initialized.
+   * This handles cases where the page was hidden when it was last unloaded.
    */
-  resetTimer() {
-      this.lastActiveTime = new Date();
-      if (!this.isActive) {
-          this.isActive = true;
-          this.options.onActive(); // Trigger the onActive callback
+  checkInitialState() {
+    const storedHiddenTime = localStorage.getItem(this.storageKey);
+    if (storedHiddenTime) {
+      const hiddenDuration = (new Date() - new Date(storedHiddenTime)) / 1000;
+      if (hiddenDuration >= 1) {
+        if (hiddenDuration >= this.options.warningThreshold) {
+          this.options.onInactive("Page was hidden", Math.floor(hiddenDuration));
+        }
+        this.options.onActive(Math.floor(hiddenDuration));
       }
+      localStorage.removeItem(this.storageKey);
+    }
   }
 
   /**
-   * Check for user inactivity or page visibility changes.
+   * Handle visibility change events.
+   * This method is called when the page becomes hidden or visible.
    */
-  checkActivity() {
-      if (document.hidden) {
-          // Page is not visible, consider as inactive
-          this.handleInactivity();
-      } else {
-          const currentTime = new Date();
-          const timeDiff = (currentTime - this.lastActiveTime) / 1000; // Convert to seconds
-
-          if (timeDiff >= this.options.warningThreshold) {
-              this.handleInactivity(timeDiff);
+  handleVisibilityChange() {
+    if (document.hidden) {
+      // Page is hidden, store the current time in localStorage
+      localStorage.setItem(this.storageKey, new Date().toISOString());
+    } else {
+      // Page is visible again, check how long it was hidden
+      const storedHiddenTime = localStorage.getItem(this.storageKey);
+      if (storedHiddenTime) {
+        const hiddenDuration = (new Date() - new Date(storedHiddenTime)) / 1000;
+        if (hiddenDuration >= 1) {
+          if (hiddenDuration >= this.options.warningThreshold) {
+            this.options.onInactive("Page was hidden", Math.floor(hiddenDuration));
           }
+          this.options.onActive(Math.floor(hiddenDuration));
+        }
+        localStorage.removeItem(this.storageKey);
       }
-  }
-
-  /**
-   * Handle inactivity by triggering the onInactive callback.
-   * @param {number} timeDiff - Time difference in seconds since last activity
-   */
-  handleInactivity(timeDiff) {
-      if (this.isActive) {
-          this.isActive = false;
-          const inactiveStr = document.hidden ? "Page is hidden" : "User inactive";
-          this.options.onInactive(inactiveStr, Math.floor(timeDiff));
-      }
+    }
   }
 
   /**
    * Check for changes in monitor configuration (e.g., resolution changes).
    */
   checkMonitorChange() {
-      const currentScreens = `${window.screen.width}x${window.screen.height}`;
-      if (currentScreens !== this.lastScreens) {
-          this.options.onMonitorChange(this.lastScreens, currentScreens);
-          this.lastScreens = currentScreens;
-      }
+    const currentScreens = `${window.screen.width}x${window.screen.height}`;
+    if (currentScreens !== this.lastScreens) {
+      this.options.onMonitorChange(this.lastScreens, currentScreens);
+      this.lastScreens = currentScreens;
+    }
+  }
+
+  /**
+   * Handle beforeunload event.
+   * This method is called when the window is about to be closed.
+   * @param {Event} event - The beforeunload event
+   */
+  handleBeforeUnload(event) {
+    const storedHiddenTime = localStorage.getItem(this.storageKey);
+    if (storedHiddenTime) {
+      const hiddenDuration = (new Date() - new Date(storedHiddenTime)) / 1000;
+      this.options.onWindowClose(Math.floor(hiddenDuration));
+    } else {
+      this.options.onWindowClose(0);
+    }
+    
+    // Uncomment the following lines if you want to show a confirmation dialog
+    // event.preventDefault(); // Cancel the event
+    // event.returnValue = ''; // Chrome requires returnValue to be set
   }
 }
 
