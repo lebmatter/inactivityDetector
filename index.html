@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inactivity Detector - Demo and Documentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="inactivityDetector.js"></script>
+    <script>
+        // Demo page logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const logTextarea = document.getElementById('logTextarea');
+            const startButton = document.getElementById('startButton');
+            const stopButton = document.getElementById('stopButton');
+            let detector;
+
+            function logMessage(message) {
+                logTextarea.value += message + '\n';
+                logTextarea.scrollTop = logTextarea.scrollHeight;
+            }
+
+            startButton.addEventListener('click', function() {
+                detector = new InactivityDetector({
+                    warningThreshold: 2, // 2 seconds of inactivity before warning
+                    onInactive: (inactiveStr, secondsInactive) => {
+                        logMessage(`Custom Inactive Handler: ${inactiveStr} for ${secondsInactive} seconds`);
+                    },
+                    onActive: () => {
+                        logMessage("Custom Active Handler: User returned to page.");
+                    },
+                    onMonitorChange: (lastScreens, currentScreens) => {
+                        logMessage(`Custom Monitor Change Handler: Monitor configuration changed from ${lastScreens} to ${currentScreens}.`);
+                    }
+                });
+
+                detector.init();
+                logMessage('Inactivity Detector started');
+                startButton.disabled = true;
+                stopButton.disabled = false;
+            });
+
+            stopButton.addEventListener('click', function() {
+                if (detector) {
+                    detector.destroy();
+                    logMessage('Inactivity Detector stopped');
+                    startButton.disabled = false;
+                    stopButton.disabled = true;
+                }
+            });
+        });
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold mb-8 text-center text-gray-800">Inactivity Detector</h1>
+        
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4">About</h2>
+            <p class="mb-4">
+                Inactivity Detector is a lightweight JavaScript library that helps you monitor user inactivity, 
+                tab changes, and monitor configuration changes. It's particularly useful for applications that 
+                require strict user attention, such as online exams or sensitive data entry forms.
+            </p>
+        </div>
+
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Features</h2>
+            <ul class="list-disc list-inside mb-4">
+                <li>Detect user inactivity based on custom thresholds</li>
+                <li>Monitor tab changes and window focus</li>
+                <li>Detect monitor configuration changes</li>
+                <li>Customizable callbacks for various events</li>
+                <li>Easy integration with existing projects</li>
+            </ul>
+        </div>
+
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Usage</h2>
+            <pre class="bg-gray-800 text-white p-4 rounded"><code>
+&lt;script src="path/to/inactivityDetector.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+const detector = new InactivityDetector({
+    warningThreshold: 5, // 5 seconds
+    onInactive: (inactiveStr, secondsInactive) => {
+        console.log(`User inactive: ${inactiveStr} for ${secondsInactive} seconds`);
+    },
+    onActive: () => {
+        console.log("User active again");
+    },
+    onMonitorChange: (lastScreens, currentScreens) => {
+        console.log(`Monitor changed from ${lastScreens} to ${currentScreens}`);
+    }
+});
+
+detector.init(); // Start detecting
+
+// Later, when you want to stop detecting
+detector.destroy();
+&lt;/script&gt;
+            </code></pre>
+        </div>
+
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Live Demo</h2>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="mb-4">
+                    <button id="startButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded mr-2">
+                        Start Detector
+                    </button>
+                    <button id="stopButton" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded" disabled>
+                        Stop Detector
+                    </button>
+                </div>
+                <textarea id="logTextarea" class="w-full h-64 p-2 border rounded resize-none bg-gray-50" readonly></textarea>
+                <p class="mt-4 text-sm text-gray-600">
+                    Try staying inactive for 2 seconds, switching tabs, minimizing the window, or changing your screen resolution to see the detector in action.
+                </p>
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4">API Reference</h2>
+            <h3 class="text-xl font-semibold mb-2">Constructor Options</h3>
+            <ul class="list-disc list-inside mb-4">
+                <li><strong>warningThreshold</strong>: Number of seconds before considering user as inactive (default: 5)</li>
+                <li><strong>onInactive(inactiveStr, secondsInactive)</strong>: Callback function when user becomes inactive</li>
+                <li><strong>onActive()</strong>: Callback function when user becomes active again</li>
+                <li><strong>onMonitorChange(lastScreens, currentScreens)</strong>: Callback function when monitor configuration changes</li>
+            </ul>
+            <h3 class="text-xl font-semibold mb-2">Methods</h3>
+            <ul class="list-disc list-inside mb-4">
+                <li><strong>init()</strong>: Start the inactivity detector</li>
+                <li><strong>destroy()</strong>: Stop the inactivity detector and clean up event listeners</li>
+            </ul>
+        </div>
+
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Contributing</h2>
+            <p class="mb-4">
+                Contributions are welcome! Please feel free to submit a Pull Request.
+            </p>
+        </div>
+
+        <div>
+            <h2 class="text-2xl font-semibold mb-4">License</h2>
+            <p>
+                This project is licensed under the MIT License.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
