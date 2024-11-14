@@ -37,6 +37,7 @@ class InactivityDetector {
     // Bind methods to ensure correct 'this' context when used as event listeners
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
     this.handleBlur = this.handleBlur.bind(this);
+    this.handleFocus = this.handleFocus.bind(this);
     this.checkMonitorChange = this.checkMonitorChange.bind(this);
     this.handleBeforeUnload = this.handleBeforeUnload.bind(this);
   }
@@ -51,8 +52,9 @@ class InactivityDetector {
     // Set up visibility change listener to detect when the page is hidden/shown
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
     
-    // Set up blur listener to detect when window loses focus
+    // Set up focus/blur listeners to detect when window gains/loses focus
     window.addEventListener('blur', this.handleBlur);
+    window.addEventListener('focus', this.handleFocus);
     
     // Set up beforeunload listener to detect when the window is about to close
     window.addEventListener('beforeunload', this.handleBeforeUnload);
@@ -71,6 +73,7 @@ class InactivityDetector {
     // Remove all event listeners
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.removeEventListener('blur', this.handleBlur);
+    window.removeEventListener('focus', this.handleFocus);
     window.removeEventListener('beforeunload', this.handleBeforeUnload);
     
     // Clear monitor change interval
@@ -106,6 +109,21 @@ class InactivityDetector {
     // Handle window losing focus similar to visibility change
     localStorage.setItem(this.storageKey, new Date().toISOString());
     this.options.onInactivityStart();
+  }
+
+  handleFocus() {
+    // Handle window gaining focus similar to visibility change
+    const storedHiddenTime = localStorage.getItem(this.storageKey);
+    if (storedHiddenTime) {
+      const hiddenDuration = (new Date() - new Date(storedHiddenTime)) / 1000;
+      if (hiddenDuration >= 1) {
+        if (hiddenDuration >= this.options.warningThreshold) {
+          this.options.onInactive("Window was blurred", Math.floor(hiddenDuration));
+        }
+        this.options.onActive(Math.floor(hiddenDuration));
+      }
+      localStorage.removeItem(this.storageKey);
+    }
   }
 
   handleVisibilityChange() {
