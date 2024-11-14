@@ -36,8 +36,7 @@ class InactivityDetector {
 
     // Bind methods to ensure correct 'this' context when used as event listeners
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
-    this.handleBlur = this.handleBlur.bind(this);
-    this.handleFocus = this.handleFocus.bind(this);
+    this.handleFocusChange = this.handleFocusChange.bind(this);
     this.checkMonitorChange = this.checkMonitorChange.bind(this);
     this.handleBeforeUnload = this.handleBeforeUnload.bind(this);
   }
@@ -53,8 +52,8 @@ class InactivityDetector {
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
     
     // Set up focus/blur listeners to detect when window gains/loses focus
-    window.addEventListener('blur', this.handleBlur);
-    window.addEventListener('focus', this.handleFocus);
+    window.addEventListener('blur', this.handleFocusChange);
+    window.addEventListener('focus', this.handleFocusChange);
     
     // Set up beforeunload listener to detect when the window is about to close
     window.addEventListener('beforeunload', this.handleBeforeUnload);
@@ -72,8 +71,8 @@ class InactivityDetector {
   destroy() {
     // Remove all event listeners
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-    window.removeEventListener('blur', this.handleBlur);
-    window.removeEventListener('focus', this.handleFocus);
+    window.removeEventListener('blur', this.handleFocusChange);
+    window.removeEventListener('focus', this.handleFocusChange);
     window.removeEventListener('beforeunload', this.handleBeforeUnload);
     
     // Clear monitor change interval
@@ -102,28 +101,29 @@ class InactivityDetector {
   }
 
   /**
-   * Handle visibility change events.
-   * This method is called when the page becomes hidden or visible.
+   * Handle focus change events.
+   * This method is called when the window gains or loses focus.
+   * @param {FocusEvent} event - The focus/blur event
    */
-  handleBlur() {
-    // Handle window losing focus similar to visibility change
-    localStorage.setItem(this.storageKey, new Date().toISOString());
-    this.options.onInactivityStart();
-  }
-
-  handleFocus() {
-    // Handle window gaining focus similar to visibility change
-    const storedHiddenTime = localStorage.getItem(this.storageKey);
-    if (storedHiddenTime) {
-      const hiddenDuration = (new Date() - new Date(storedHiddenTime)) / 1000;
-      if (hiddenDuration >= 1) {
-        if (hiddenDuration >= this.options.warningThreshold) {
-          this.options.onInactive("Window was blurred", Math.floor(hiddenDuration));
-        }
-        this.options.onActive(Math.floor(hiddenDuration));
+  handleFocusChange(event) {
+      // Window lost focus
+      if (!document.hidden) { // Only handle if page isn't already hidden
+        localStorage.setItem(this.storageKey, new Date().toISOString());
+        this.options.onInactivityStart();
       }
-      localStorage.removeItem(this.storageKey);
-    }
+      // Window gained focus
+      const storedHiddenTime = localStorage.getItem(this.storageKey);
+      if (storedHiddenTime && !document.hidden) { // Only process if we have stored time and page isn't hidden
+        const hiddenDuration = (new Date() - new Date(storedHiddenTime)) / 1000;
+        if (hiddenDuration >= 1) {
+          if (hiddenDuration >= this.options.warningThreshold) {
+            this.options.onInactive("Window was blurred", Math.floor(hiddenDuration));
+          }
+          this.options.onActive(Math.floor(hiddenDuration));
+        }
+        localStorage.removeItem(this.storageKey);
+      }
+
   }
 
   handleVisibilityChange() {
