@@ -36,6 +36,7 @@ class InactivityDetector {
 
     // Bind methods to ensure correct 'this' context when used as event listeners
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    this.handleBlur = this.handleBlur.bind(this);
     this.checkMonitorChange = this.checkMonitorChange.bind(this);
     this.handleBeforeUnload = this.handleBeforeUnload.bind(this);
   }
@@ -49,6 +50,9 @@ class InactivityDetector {
 
     // Set up visibility change listener to detect when the page is hidden/shown
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    
+    // Set up blur listener to detect when window loses focus
+    window.addEventListener('blur', this.handleBlur);
     
     // Set up beforeunload listener to detect when the window is about to close
     window.addEventListener('beforeunload', this.handleBeforeUnload);
@@ -66,6 +70,7 @@ class InactivityDetector {
   destroy() {
     // Remove all event listeners
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('blur', this.handleBlur);
     window.removeEventListener('beforeunload', this.handleBeforeUnload);
     
     // Clear monitor change interval
@@ -97,8 +102,14 @@ class InactivityDetector {
    * Handle visibility change events.
    * This method is called when the page becomes hidden or visible.
    */
+  handleBlur() {
+    // Handle window losing focus similar to visibility change
+    localStorage.setItem(this.storageKey, new Date().toISOString());
+    this.options.onInactivityStart();
+  }
+
   handleVisibilityChange() {
-    if (document.hidden) {
+    if (document.hidden || !document.hasFocus()) {
       // Page is hidden, store the current time in localStorage
       localStorage.setItem(this.storageKey, new Date().toISOString());
       this.options.onInactivityStart();
