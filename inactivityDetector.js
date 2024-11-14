@@ -10,6 +10,7 @@ class InactivityDetector {
    * Create an InactivityDetector instance.
    * @param {Object} options - Configuration options
    * @param {number} [options.warningThreshold=5] - Inactivity time (in seconds) before triggering a warning
+   * @param {Function} [options.onInactivityStart] - Callback function when inactivity is first detected
    * @param {Function} [options.onInactive] - Callback function when user becomes inactive
    * @param {Function} [options.onActive] - Callback function when user becomes active again
    * @param {Function} [options.onMonitorChange] - Callback function when monitor configuration changes
@@ -19,6 +20,7 @@ class InactivityDetector {
     // Merge default options with provided options
     this.options = {
       warningThreshold: 5,
+      onInactivityStart: () => {},
       onInactive: () => {},
       onActive: () => {},
       onMonitorChange: () => {},
@@ -99,6 +101,7 @@ class InactivityDetector {
     if (document.hidden) {
       // Page is hidden, store the current time in localStorage
       localStorage.setItem(this.storageKey, new Date().toISOString());
+      this.options.onInactivityStart();
     } else {
       // Page is visible again, check how long it was hidden
       const storedHiddenTime = localStorage.getItem(this.storageKey);

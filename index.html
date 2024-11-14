@@ -48,6 +48,9 @@
 &lt;script&gt;
 const detector = new InactivityDetector({
     warningThreshold: 5, // 5 seconds
+    onInactivityStart: () => {
+        console.log("User inactivity detected");
+    },
     onInactive: (inactiveStr, secondsInactive) => {
         console.log(`User inactive: ${inactiveStr} for ${secondsInactive} seconds`);
     },
@@ -71,6 +74,7 @@ detector.destroy();
                 <h3 class="text-lg md:text-xl font-semibold mb-2">Constructor Options</h3>
                 <ul class="list-disc pl-5">
                     <li><strong>warningThreshold</strong>: Number of seconds before considering user as inactive (default: 5)</li>
+                    <li><strong>onInactivityStart()</strong>: Callback function when inactivity is first detected</li>
                     <li><strong>onInactive(inactiveStr, secondsInactive)</strong>: Callback function when user becomes inactive</li>
                     <li><strong>onActive()</strong>: Callback function when user becomes active again</li>
                     <li><strong>onMonitorChange(lastScreens, currentScreens)</strong>: Callback function when monitor configuration changes</li>
@@ -131,6 +135,9 @@ detector.destroy();
         startButton.addEventListener('click', () => {
             detector = new InactivityDetector({
                 warningThreshold: 2,
+                onInactivityStart: () => {
+                    log("User inactivity detected");
+                },
                 onInactive: (inactiveStr, secondsInactive) => {
                     log(`User inactive: ${inactiveStr} for ${secondsInactive} seconds`);
                 },
